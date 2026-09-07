@@ -16,10 +16,10 @@ const API_URL =
   'https://asg-b2.onrender.com/upload-supabase';
 
 const ROUNDS = [
-  '로벤저스 직급전',
+  'HM크루 직급전',
   ...Array.from(
     { length: 12 },
-    (_, i) => `로벤저스 ${i + 1}회차`
+    (_, i) => `HM크루 ${i + 1}회차`
   )
 ];
 
