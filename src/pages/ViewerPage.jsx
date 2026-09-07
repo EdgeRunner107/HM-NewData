@@ -37,7 +37,7 @@ const API_URL =
 
 
 const DEFAULT_ROUND =
-  'HM상사 직급전';
+  'HM크루 직급전';
 
 
 const numberFormat =
@@ -1084,13 +1084,13 @@ export default function ViewerPage() {
           <div
             className="hero-title"
           >
-            HM상사
+            HM크루
           </div>
 
           <div
             className="hero-subtitle"
           >
-            HM상사 점수 조회
+            HM크루 점수 조회
           </div>
         </section>
 
