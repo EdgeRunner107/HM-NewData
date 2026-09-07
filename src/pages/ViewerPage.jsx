@@ -33,7 +33,7 @@ import {
 
 const API_URL =
   import.meta.env.VITE_DATA_API_URL ||
-  'https://asg-b2.onrender.com/supabase-dataB';
+  'https://asg-b2.onrender.com/supabase-datab';
 
 
 const DEFAULT_ROUND =
