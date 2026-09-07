@@ -13,7 +13,7 @@ import {
 
 const API_URL =
   import.meta.env.VITE_UPLOAD_API_URL ||
-  'https://asg-b2.onrender.com/upload-supabase';
+  'https://asg-b2.onrender.com/upload-supabaseb';
 
 const ROUNDS = [
   'HM크루 직급전',
