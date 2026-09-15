@@ -92,6 +92,14 @@ function formatScore(value) {
   )}점`;
 }
 
+// ======================================================
+// 기여도 점수: 마이너스 금액도 양수로 계산
+// ======================================================
+
+function toContributionScore(value) {
+  return Math.abs(toNumber(value));
+}
+
 
 // ======================================================
 // 날짜 표시
@@ -500,7 +508,9 @@ export default function ViewerPage() {
                     donorName,
                   user_id:
                     donorId,
-                  total:
+                  gameTotal:
+                    0,
+                  contributionTotal:
                     0,
                   count:
                     0
@@ -511,8 +521,13 @@ export default function ViewerPage() {
             const donor =
               map.get(key);
 
-            donor.total +=
+            donor.gameTotal +=
               toNumber(
+                item.amount
+              );
+
+            donor.contributionTotal +=
+              toContributionScore(
                 item.amount
               );
 
@@ -525,8 +540,8 @@ export default function ViewerPage() {
           ...map.values()
         ].sort(
           (a, b) =>
-            b.total -
-            a.total
+            b.contributionTotal -
+            a.contributionTotal
         );
       },
       [selectedRows]
@@ -575,7 +590,7 @@ export default function ViewerPage() {
   // 총점
   // ====================================================
 
-  const selectedTotal =
+  const selectedGameTotal =
     useMemo(
       () => {
         return selectedRows.reduce(
@@ -585,6 +600,25 @@ export default function ViewerPage() {
           ) =>
             sum +
             toNumber(
+              item.amount
+            ),
+          0
+        );
+      },
+      [selectedRows]
+    );
+
+
+  const selectedContributionTotal =
+    useMemo(
+      () => {
+        return selectedRows.reduce(
+          (
+            sum,
+            item
+          ) =>
+            sum +
+            toContributionScore(
               item.amount
             ),
           0
@@ -637,7 +671,8 @@ export default function ViewerPage() {
                 roundName,
                 {
                   round: roundName,
-                  total: 0,
+                  gameTotal: 0,
+                  contributionTotal: 0,
                   count: 0,
                   donors: new Set()
                 }
@@ -647,8 +682,13 @@ export default function ViewerPage() {
             const target =
               map.get(roundName);
 
-            target.total +=
+            target.gameTotal +=
               toNumber(
+                item.amount
+              );
+
+            target.contributionTotal +=
+              toContributionScore(
                 item.amount
               );
 
@@ -664,7 +704,8 @@ export default function ViewerPage() {
           .map(
             item => ({
               round: item.round,
-              total: item.total,
+              gameTotal: item.gameTotal,
+              contributionTotal: item.contributionTotal,
               count: item.count,
               donorCount:
                 item.donors.size
@@ -700,13 +741,26 @@ export default function ViewerPage() {
     );
 
 
-  const cumulativeTotal =
+  const cumulativeGameTotal =
     useMemo(
       () =>
         cumulativeRows.reduce(
           (sum, item) =>
             sum +
             toNumber(item.amount),
+          0
+        ),
+      [cumulativeRows]
+    );
+
+
+  const cumulativeContributionTotal =
+    useMemo(
+      () =>
+        cumulativeRows.reduce(
+          (sum, item) =>
+            sum +
+            toContributionScore(item.amount),
           0
         ),
       [cumulativeRows]
@@ -788,7 +842,8 @@ export default function ViewerPage() {
                 timestamp,
                 {
                   timestamp,
-                  amount: 0,
+                  gameAmount: 0,
+                  contributionAmount: 0,
                   count: 0
                 }
               );
@@ -799,8 +854,13 @@ export default function ViewerPage() {
                 timestamp
               );
 
-            target.amount +=
+            target.gameAmount +=
               toNumber(
+                item.amount
+              );
+
+            target.contributionAmount +=
+              toContributionScore(
                 item.amount
               );
 
@@ -892,8 +952,12 @@ export default function ViewerPage() {
               hourLabel:
                 `${hour}시`,
 
-              amount:
-                found?.amount ||
+              gameAmount:
+                found?.gameAmount ||
+                0,
+
+              contributionAmount:
+                found?.contributionAmount ||
                 0,
 
               count:
@@ -930,8 +994,8 @@ export default function ViewerPage() {
           ) => {
             if (
               !best ||
-              current.amount >
-                best.amount
+              current.contributionAmount >
+                best.contributionAmount
             ) {
               return current;
             }
@@ -976,13 +1040,27 @@ export default function ViewerPage() {
 
         <div>
           <span>
-            금액
+            점수
           </span>
 
           <b>
             {
               formatScore(
-                data.amount
+                data.gameAmount
+              )
+            }
+          </b>
+        </div>
+
+        <div>
+          <span>
+            기여도 점수
+          </span>
+
+          <b>
+            {
+              formatScore(
+                data.contributionAmount
               )
             }
           </b>
@@ -1328,11 +1406,9 @@ export default function ViewerPage() {
               </div>
 
               <strong>
-                {
-                  formatScore(
-                    selectedTotal
-                  )
-                }
+                점수 {formatScore(selectedGameTotal)}
+                <br />
+                기여도 {formatScore(selectedContributionTotal)}
               </strong>
             </section>
 
@@ -1354,13 +1430,36 @@ export default function ViewerPage() {
                 </div>
 
                 <span>
-                  총점
+                  게임점수
                 </span>
 
                 <strong>
                   {
                     formatScore(
-                      selectedTotal
+                      selectedGameTotal
+                    )
+                  }
+                </strong>
+              </article>
+
+
+              <article>
+                <div
+                  className="mini-icon"
+                >
+                  <Trophy
+                    size={17}
+                  />
+                </div>
+
+                <span>
+                  기여도 점수
+                </span>
+
+                <strong>
+                  {
+                    formatScore(
+                      selectedContributionTotal
                     )
                   }
                 </strong>
@@ -1479,7 +1578,13 @@ export default function ViewerPage() {
                       <th
                         className="number-cell"
                       >
-                        금액
+                        게임점수
+                      </th>
+
+                      <th
+                        className="number-cell"
+                      >
+                        기여도 점수
                       </th>
                     </tr>
                   </thead>
@@ -1490,7 +1595,7 @@ export default function ViewerPage() {
                       0 ? (
                       <tr>
                         <td
-                          colSpan="3"
+                          colSpan="5"
                           className="empty-table"
                         >
                           데이터가 없습니다.
@@ -1531,7 +1636,17 @@ export default function ViewerPage() {
                             >
                               {
                                 formatScore(
-                                  donor.total
+                                  donor.gameTotal
+                                )
+                              }
+                            </td>
+
+                            <td
+                              className="number-cell score-cell"
+                            >
+                              {
+                                formatScore(
+                                  donor.contributionTotal
                                 )
                               }
                             </td>
@@ -1556,12 +1671,22 @@ export default function ViewerPage() {
                         {
                           formatScore(
                             filteredDonors.reduce(
-                              (
-                                sum,
-                                item
-                              ) =>
-                                sum +
-                                item.total,
+                              (sum, item) =>
+                                sum + item.gameTotal,
+                              0
+                            )
+                          )
+                        }
+                      </td>
+
+                      <td
+                        className="number-cell"
+                      >
+                        {
+                          formatScore(
+                            filteredDonors.reduce(
+                              (sum, item) =>
+                                sum + item.contributionTotal,
                               0
                             )
                           )
@@ -1637,7 +1762,13 @@ export default function ViewerPage() {
                       <th
                         className="number-cell"
                       >
-                        금액
+                        게임점수
+                      </th>
+
+                      <th
+                        className="number-cell"
+                      >
+                        기여도 점수
                       </th>
 
                       <th>
@@ -1652,7 +1783,7 @@ export default function ViewerPage() {
                       0 ? (
                       <tr>
                         <td
-                          colSpan="7"
+                          colSpan="8"
                           className="empty-table"
                         >
                           데이터가 없습니다.
@@ -1726,6 +1857,16 @@ export default function ViewerPage() {
                             </td>
 
                             <td
+                              className="number-cell score-cell"
+                            >
+                              {
+                                formatScore(
+                                  toContributionScore(item.amount)
+                                )
+                              }
+                            </td>
+
+                            <td
                               className="time-cell"
                             >
                               {
@@ -1754,11 +1895,13 @@ export default function ViewerPage() {
                       <td
                         className="number-cell"
                       >
-                        {
-                          formatScore(
-                            selectedTotal
-                          )
-                        }
+                        {formatScore(selectedGameTotal)}
+                      </td>
+
+                      <td
+                        className="number-cell"
+                      >
+                        {formatScore(selectedContributionTotal)}
                       </td>
 
                       <td />
@@ -1792,7 +1935,7 @@ export default function ViewerPage() {
                     <p>
                       {
                         selectedStreamer
-                      } · 1시간 단위 금액
+                      } · 1시간 단위 게임/기여도 점수
                     </p>
                   </div>
                 </div>
@@ -1816,13 +1959,28 @@ export default function ViewerPage() {
                   >
                     <article>
                       <span>
-                        총 금액
+                        게임점수
                       </span>
 
                       <strong>
                         {
                           formatScore(
-                            selectedTotal
+                            selectedGameTotal
+                          )
+                        }
+                      </strong>
+                    </article>
+
+
+                    <article>
+                      <span>
+                        기여도 점수
+                      </span>
+
+                      <strong>
+                        {
+                          formatScore(
+                            selectedContributionTotal
                           )
                         }
                       </strong>
@@ -1965,7 +2123,7 @@ export default function ViewerPage() {
 
                         <Line
                           type="monotone"
-                          dataKey="amount"
+                          dataKey="contributionAmount"
                           stroke="#8b6cff"
                           strokeWidth={3}
                           dot={{
@@ -2006,7 +2164,11 @@ export default function ViewerPage() {
                           </th>
 
                           <th>
-                            금액
+                            게임점수
+                          </th>
+
+                          <th>
+                            기여도 점수
                           </th>
 
                           <th>
@@ -2034,7 +2196,17 @@ export default function ViewerPage() {
                               >
                                 {
                                   formatScore(
-                                    item.amount
+                                    item.gameAmount
+                                  )
+                                }
+                              </td>
+
+                              <td
+                                className="hourly-money"
+                              >
+                                {
+                                  formatScore(
+                                    item.contributionAmount
                                   )
                                 }
                               </td>
@@ -2087,9 +2259,16 @@ export default function ViewerPage() {
                 className="chart-summary"
               >
                 <article>
-                  <span>누적 총점</span>
+                  <span>누적 게임점수</span>
                   <strong>
-                    {formatScore(cumulativeTotal)}
+                    {formatScore(cumulativeGameTotal)}
+                  </strong>
+                </article>
+
+                <article>
+                  <span>누적 기여도 점수</span>
+                  <strong>
+                    {formatScore(cumulativeContributionTotal)}
                   </strong>
                 </article>
 
@@ -2126,7 +2305,10 @@ export default function ViewerPage() {
                     <tr>
                       <th>회차</th>
                       <th className="number-cell">
-                        누적 점수
+                        게임점수
+                      </th>
+                      <th className="number-cell">
+                        기여도 점수
                       </th>
                       <th className="number-cell">
                         후원자
@@ -2159,7 +2341,11 @@ export default function ViewerPage() {
                             </td>
 
                             <td className="number-cell score-cell">
-                              {formatScore(item.total)}
+                              {formatScore(item.gameTotal)}
+                            </td>
+
+                            <td className="number-cell score-cell">
+                              {formatScore(item.contributionTotal)}
                             </td>
 
                             <td className="number-cell">
@@ -2180,7 +2366,10 @@ export default function ViewerPage() {
                     <tr>
                       <td>전체 누적</td>
                       <td className="number-cell">
-                        {formatScore(cumulativeTotal)}
+                        {formatScore(cumulativeGameTotal)}
+                      </td>
+                      <td className="number-cell">
+                        {formatScore(cumulativeContributionTotal)}
                       </td>
                       <td className="number-cell">
                         {cumulativeDonorCount}명
