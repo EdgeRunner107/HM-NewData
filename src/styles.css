@@ -499,6 +499,54 @@ a {
 
 /* admin */
 
+/* NEW DATA 팀 / 시즌 선택 */
+.choice-buttons {
+  display: grid;
+  gap: 10px;
+}
+
+.team-buttons .team-choice {
+  min-height: 64px;
+  font-size: 20px;
+}
+
+.season-buttons {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.season-buttons button[aria-pressed="true"] {
+  border-color: #8b63ff;
+  color: #eee8ff;
+  background: #2b234d;
+}
+
+.scope-panel {
+  margin-bottom: 18px;
+}
+
+.scope-title {
+  margin: 16px 0;
+  font-size: 22px;
+}
+
+.back-to-teams {
+  padding: 0 16px;
+}
+
+.scope-notice {
+  margin-top: 18px;
+}
+
+.admin-scope-label {
+  margin-top: 16px;
+}
+
+.choice-buttons button:focus-visible,
+.back-to-teams:focus-visible {
+  outline: 2px solid #b9a6ff;
+  outline-offset: 3px;
+}
+
 .admin-upload-box {
   display: flex;
   flex-direction: column;

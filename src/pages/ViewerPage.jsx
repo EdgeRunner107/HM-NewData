@@ -5,6 +5,7 @@ import React, {
 } from 'react';
 
 import axios from 'axios';
+import { DATA_API_URL as API_URL, DEFAULT_ROUND, TEAMS, SEASONS } from '../newDataConfig';
 
 import {
   Link
@@ -29,15 +30,6 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
-
-
-const API_URL =
-  import.meta.env.VITE_DATA_API_URL ||
-  'https://asg-b2.onrender.com/supabase-datab';
-
-
-const DEFAULT_ROUND =
-  'HM크루 직급전';
 
 
 const numberFormat =
@@ -173,6 +165,13 @@ function normalizeResponse(data) {
 // ======================================================
 
 export default function ViewerPage() {
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  const [selectedSeason, setSelectedSeason] = useState(null);
+  const [roundData, setRoundData] = useState([]);
+  const [roundLoading, setRoundLoading] = useState(false);
+  const [roundError, setRoundError] = useState('');
+  const [refreshVersion, setRefreshVersion] = useState(0);
+
   const [
     rows,
     setRows
@@ -184,7 +183,7 @@ export default function ViewerPage() {
     setSelectedRound
   ] =
     useState(
-      DEFAULT_ROUND
+      null
     );
 
   const [
@@ -200,14 +199,14 @@ export default function ViewerPage() {
     useState('');
 
   const [
-    loading,
-    setLoading
+    scopeLoading,
+    setScopeLoading
   ] =
-    useState(true);
+    useState(false);
 
   const [
-    error,
-    setError
+    scopeError,
+    setScopeError
   ] =
     useState('');
 
@@ -216,45 +215,109 @@ export default function ViewerPage() {
   // API 조회
   // ====================================================
 
-  const loadData =
-    async () => {
+  const loading = scopeLoading || roundLoading;
+  const error = scopeError || roundError;
+  const loadData = () => setRefreshVersion(value => value + 1);
+
+  const resetData = () => {
+    setSelectedRound(null);
+    setSelectedStreamer('');
+    setSearch('');
+    setRows([]);
+    setRoundData([]);
+    setScopeError('');
+    setRoundError('');
+    setScopeLoading(false);
+    setRoundLoading(false);
+  };
+
+  const selectTeam = team => {
+    setSelectedTeam(team);
+    setSelectedSeason(null);
+    resetData();
+  };
+
+  const selectSeason = season => {
+    if (season === selectedSeason) return;
+    setSelectedSeason(season);
+    resetData();
+  };
+
+  // 회차 목록과 기존 누적 통계는 선택한 팀/시즌의 전체 회차를 사용한다.
+  useEffect(() => {
+    if (!selectedTeam || !selectedSeason) return;
+    const controller = new AbortController();
+    let active = true;
+
+    const fetchScope = async () => {
+      setScopeLoading(true);
+      setScopeError('');
+      setRows([]);
       try {
-        setLoading(true);
-        setError('');
-
-        const response =
-          await axios.get(
-            API_URL
-          );
-
-        setRows(
-          normalizeResponse(
-            response.data
-          )
-        );
-
+        const response = await axios.get(API_URL, {
+          params: { team: selectedTeam, season: selectedSeason },
+          signal: controller.signal
+        });
+        if (active) {
+          setRows(normalizeResponse(response.data).filter(item =>
+            item.team === selectedTeam && item.season === selectedSeason
+          ));
+        }
       } catch (err) {
-        console.error(err);
-
-        setError(
-          err?.response?.data?.detail ||
-          err?.response?.data?.error ||
-          err.message ||
-          '데이터를 불러오지 못했습니다.'
-        );
-
+        if (active) {
+          console.error(err);
+          setScopeError('데이터를 불러오지 못했습니다.');
+        }
       } finally {
-        setLoading(false);
+        if (active) setScopeLoading(false);
       }
     };
+    fetchScope();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [selectedTeam, selectedSeason, refreshVersion]);
 
+  // 선택 회차의 상세 데이터는 서버에서 세 조건으로 조회한다.
+  useEffect(() => {
+    setRoundData([]);
+    setRoundError('');
+    if (!selectedTeam || !selectedSeason || !selectedRound) {
+      setRoundLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    let active = true;
 
-  useEffect(
-    () => {
-      loadData();
-    },
-    []
-  );
+    const fetchRound = async () => {
+      setRoundLoading(true);
+      try {
+        const response = await axios.get(API_URL, {
+          params: { team: selectedTeam, season: selectedSeason, round: selectedRound },
+          signal: controller.signal
+        });
+        if (active) {
+          setRoundData(normalizeResponse(response.data).filter(item =>
+            item.team === selectedTeam && item.season === selectedSeason &&
+            item.round === selectedRound
+          ));
+        }
+      } catch (err) {
+        if (active) {
+          console.error(err);
+          setRoundError('데이터를 불러오지 못했습니다.');
+        }
+      } finally {
+        if (active) setRoundLoading(false);
+      }
+    };
+    fetchRound();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [selectedTeam, selectedSeason, selectedRound, refreshVersion]);
 
 
   // ====================================================
@@ -309,7 +372,7 @@ export default function ViewerPage() {
 
   useEffect(
     () => {
-      if (!rows.length) {
+      if (!selectedRound || scopeLoading || scopeError) {
         return;
       }
 
@@ -319,8 +382,7 @@ export default function ViewerPage() {
         )
       ) {
         setSelectedRound(
-          rounds[0] ||
-          DEFAULT_ROUND
+          null
         );
 
         setSelectedStreamer('');
@@ -330,7 +392,9 @@ export default function ViewerPage() {
     [
       rows,
       rounds,
-      selectedRound
+      selectedRound,
+      scopeLoading,
+      scopeError
     ]
   );
 
@@ -342,14 +406,14 @@ export default function ViewerPage() {
   const roundRows =
     useMemo(
       () => {
-        return rows.filter(
+        return roundData.filter(
           item =>
             item.round ===
             selectedRound
         );
       },
       [
-        rows,
+        roundData,
         selectedRound
       ]
     );
@@ -395,6 +459,7 @@ export default function ViewerPage() {
 
   useEffect(
     () => {
+      if (roundLoading) return;
       if (
         selectedStreamer &&
         !streamers.includes(
@@ -407,7 +472,8 @@ export default function ViewerPage() {
     },
     [
       streamers,
-      selectedStreamer
+      selectedStreamer,
+      roundLoading
     ]
   );
 
@@ -1080,6 +1146,62 @@ export default function ViewerPage() {
   };
 
 
+  const scopeSelection = (
+    <section className="filter-panel scope-panel">
+      <button type="button" className="secondary-button back-to-teams"
+        onClick={() => selectTeam(null)}>
+        ← 팀 선택
+      </button>
+      <h2 className="scope-title">{selectedTeam}</h2>
+      <p className="label">시즌 선택</p>
+      <div className="choice-buttons season-buttons">
+        {SEASONS.map(season => (
+          <button key={season} type="button"
+            className="secondary-button"
+            aria-pressed={selectedSeason === season}
+            onClick={() => selectSeason(season)}>
+            {season}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+
+  if (!selectedTeam || !selectedSeason) {
+    return (
+      <main className="page">
+        <section className="mobile">
+          <header className="header">
+            <div>
+              <p className="eyebrow">HM CREW</p>
+              <h1>HM NEW DATA</h1>
+            </div>
+            <Link className="header-icon" to="/admin" aria-label="운영자 페이지">
+              <Settings size={18} />
+            </Link>
+          </header>
+          {!selectedTeam ? (
+            <>
+              <section className="logo-hero">
+                <div className="logo-hero-glow" />
+                <img src="/logo.jpg" alt="HM크루" className="hero-logo" />
+                <div className="hero-title">HM NEW DATA</div>
+              </section>
+              <div className="choice-buttons team-buttons">
+                {TEAMS.map(team => (
+                  <button key={team} type="button" className="primary-button team-choice"
+                    onClick={() => selectTeam(team)}>
+                    {team}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : scopeSelection}
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main
       className="page"
@@ -1103,7 +1225,7 @@ export default function ViewerPage() {
             </p>
 
             <h1>
-              개인 점수 조회
+              {selectedTeam} · 개인 점수 조회
             </h1>
           </div>
 
@@ -1128,6 +1250,7 @@ export default function ViewerPage() {
                 loadData
               }
               aria-label="새로고침"
+              disabled={loading}
             >
               <RefreshCw
                 size={18}
@@ -1172,6 +1295,7 @@ export default function ViewerPage() {
           </div>
         </section>
 
+        {scopeSelection}
 
         {/* =========================================
             ERROR
@@ -1231,31 +1355,23 @@ export default function ViewerPage() {
 
                 <select
                   value={
-                    selectedRound
+                    selectedRound || ''
                   }
                   onChange={
                     e => {
                       setSelectedRound(
-                        e.target.value
+                        e.target.value || null
                       );
 
+                      setRoundData([]);
                       setSelectedStreamer('');
                       setSearch('');
                     }
                   }
+                  aria-label="회차"
+                  disabled={scopeLoading || !!scopeError || rounds.length === 0}
                 >
-                  {rounds.length ===
-                    0 && (
-                    <option
-                      value={
-                        DEFAULT_ROUND
-                      }
-                    >
-                      {
-                        DEFAULT_ROUND
-                      }
-                    </option>
-                  )}
+                  <option value="">회차 선택</option>
 
                   {rounds.map(
                     round => (
@@ -1314,6 +1430,7 @@ export default function ViewerPage() {
                     streamers.length ===
                     0
                   }
+                  aria-label="스트리머"
                 >
                   <option
                     value=""
@@ -1344,7 +1461,7 @@ export default function ViewerPage() {
                 />
               </label>
 
-              {!loading &&
+              {selectedRound && !loading && !error &&
                 streamers.length ===
                   0 && (
                 <p
@@ -1358,7 +1475,15 @@ export default function ViewerPage() {
         </section>
 
 
-        {!selectedStreamer ? (
+        {loading ? (
+          <div className="notice scope-notice" role="status">데이터를 불러오는 중입니다.</div>
+        ) : error ? null : (rows.length === 0 || (selectedRound && roundRows.length === 0)) ? (
+          <div className="notice scope-notice" role="status">
+            해당 팀 / 시즌 / 회차에 데이터가 없습니다.
+          </div>
+        ) : !selectedRound ? (
+          <div className="notice scope-notice">회차를 선택해주세요.</div>
+        ) : !selectedStreamer ? (
           <section
             className="select-empty"
           >

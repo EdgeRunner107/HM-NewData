@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import axios from 'axios';
+import { UPLOAD_API_URL as API_URL, TEAMS, SEASONS, UPLOAD_ROUNDS as ROUNDS } from '../newDataConfig';
 import {
   ArrowLeft,
   ChevronDown,
@@ -10,18 +11,6 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
-
-const API_URL =
-  import.meta.env.VITE_UPLOAD_API_URL ||
-  'https://asg-b2.onrender.com/upload-supabaseb';
-
-const ROUNDS = [
-  'HM크루 직급전',
-  ...Array.from(
-    { length: 12 },
-    (_, i) => `HM크루 ${i + 1}회차`
-  )
-];
 
 function normalizeAmount(value) {
   if (
@@ -114,6 +103,11 @@ function normalizeHeader(value) {
 }
 
 export default function AdminPage() {
+  const [selectedTeam, setSelectedTeam] = useState('');
+  const [selectedSeason, setSelectedSeason] = useState('');
+  const [parsing, setParsing] = useState(false);
+  const fileReaderRef = useRef(null);
+
   const [
     selectedRound,
     setSelectedRound
@@ -147,11 +141,28 @@ export default function AdminPage() {
     setUploadResult
   ] = useState(null);
 
+  const hasScope = TEAMS.includes(selectedTeam) &&
+    SEASONS.includes(selectedSeason) && ROUNDS.includes(selectedRound);
+  const scopeLabel = `${selectedTeam} / ${selectedSeason} / ${selectedRound}`;
+
+  const validateSelection = () => {
+    const message = !TEAMS.includes(selectedTeam) ? '팀을 선택해주세요.' :
+      !SEASONS.includes(selectedSeason) ? '시즌을 선택해주세요.' :
+      !ROUNDS.includes(selectedRound) ? '회차를 선택해주세요.' : '';
+    if (message) setStatus({ type: 'error', message });
+    return !message;
+  };
+
   // =====================================================
   // 업로드 상태 초기화
   // =====================================================
 
   const resetUpload = () => {
+    if (fileReaderRef.current) {
+      fileReaderRef.current.abort();
+      fileReaderRef.current = null;
+    }
+    setParsing(false);
     setSelectedFileName('');
 
     setPreviewData([]);
@@ -185,16 +196,14 @@ export default function AdminPage() {
       return;
     }
 
-    if (!selectedRound) {
-      alert(
-        '먼저 회차를 선택해주세요.'
-      );
-
+    if (!validateSelection()) {
       e.target.value = '';
 
       return;
     }
 
+    resetUpload();
+    setParsing(true);
     setSelectedFileName(
       file.name
     );
@@ -208,8 +217,10 @@ export default function AdminPage() {
 
     const reader =
       new FileReader();
+    fileReaderRef.current = reader;
 
     reader.onload = (event) => {
+      if (fileReaderRef.current !== reader) return;
       try {
         const data =
           event.target.result;
@@ -384,7 +395,9 @@ export default function AdminPage() {
                 ),
 
               회차:
-                selectedRound
+                selectedRound,
+              team: selectedTeam,
+              season: selectedSeason
             })
           );
 
@@ -419,10 +432,16 @@ export default function AdminPage() {
           message:
             error.message
         });
+      } finally {
+        fileReaderRef.current = null;
+        setParsing(false);
       }
     };
 
     reader.onerror = () => {
+      if (fileReaderRef.current !== reader) return;
+      fileReaderRef.current = null;
+      setParsing(false);
       setPreviewData([]);
 
       setUploadResult(null);
@@ -445,20 +464,13 @@ export default function AdminPage() {
   // =====================================================
 
   const handleUpload = async () => {
-    if (!selectedRound) {
-      alert(
-        '회차를 선택해주세요.'
-      );
-
-      return;
-    }
+    if (uploading || parsing) return;
+    if (!validateSelection()) return;
 
     if (
       previewData.length === 0
     ) {
-      alert(
-        '업로드할 엑셀 파일을 선택해주세요.'
-      );
+      setStatus({ type: 'error', message: 'Excel 파일을 선택해주세요.' });
 
       return;
     }
@@ -502,7 +514,10 @@ export default function AdminPage() {
 
           {
             data:
-              uploadData
+              uploadData,
+            team: selectedTeam,
+            season: selectedSeason,
+            round: selectedRound
           },
 
           {
@@ -670,7 +685,7 @@ export default function AdminPage() {
         type: 'success',
 
         message:
-          `${insertedRows}개의 데이터가 Supabase에 정상 저장되었습니다.`
+          `${scopeLabel} 데이터 업로드가 완료되었습니다. (${insertedRows}건)`
       });
 
     } catch (error) {
@@ -796,7 +811,7 @@ export default function AdminPage() {
         </header>
 
         {/* ================================================
-            01. 회차 선택
+            01. 팀 / 시즌 / 회차 선택
         ================================================ */}
 
         <section className="filter-panel">
@@ -810,24 +825,55 @@ export default function AdminPage() {
             <div>
 
               <h2>
-                회차 선택
+                업로드 범위 선택
               </h2>
 
               <p>
-                업로드할 데이터의 회차를 선택합니다.
+                팀, 시즌, 회차를 순서대로 선택합니다.
               </p>
 
             </div>
 
           </div>
 
-          <p className="label">
+          <p className="label">팀</p>
+          <label className="select-box">
+            <select aria-label="팀" value={selectedTeam} disabled={uploading}
+              onChange={e => {
+                setSelectedTeam(e.target.value);
+                setSelectedSeason('');
+                setSelectedRound('');
+                resetUpload();
+              }}>
+              <option value="">팀 선택</option>
+              {TEAMS.map(team => <option key={team} value={team}>{team}</option>)}
+            </select>
+            <ChevronDown size={17} />
+          </label>
+
+          <p className="label admin-scope-label">시즌</p>
+          <label className="select-box">
+            <select aria-label="시즌" value={selectedSeason} disabled={!selectedTeam || uploading}
+              onChange={e => {
+                setSelectedSeason(e.target.value);
+                setSelectedRound('');
+                resetUpload();
+              }}>
+              <option value="">시즌 선택</option>
+              {SEASONS.map(season => <option key={season} value={season}>{season}</option>)}
+            </select>
+            <ChevronDown size={17} />
+          </label>
+
+          <p className="label admin-scope-label">
             회차
           </p>
 
           <label className="select-box">
 
             <select
+              aria-label="회차"
+              disabled={!selectedTeam || !selectedSeason || uploading}
               value={
                 selectedRound
               }
@@ -894,7 +940,7 @@ export default function AdminPage() {
                 </h2>
 
                 <p>
-                  로벤저스 데이터를 불러옵니다.
+                  선택한 팀 / 시즌 / 회차에 Excel 데이터를 업로드합니다.
                 </p>
 
               </div>
@@ -906,7 +952,7 @@ export default function AdminPage() {
           <div
             className={
               `admin-upload-box ${
-                !selectedRound
+                !hasScope || uploading || parsing
                   ? 'disabled'
                   : ''
               }`
@@ -933,7 +979,7 @@ export default function AdminPage() {
             <label
               className={
                 `admin-file-button ${
-                  !selectedRound
+                  !hasScope || uploading || parsing
                     ? 'disabled'
                     : ''
                 }`
@@ -952,18 +998,18 @@ export default function AdminPage() {
                 handleFileChange
               }
               disabled={
-                !selectedRound ||
-                uploading
+                !hasScope ||
+                uploading || parsing
               }
             />
 
           </div>
 
-          {!selectedRound && (
+          {!hasScope && (
 
             <p className="helper-text centered">
 
-              회차를 먼저 선택해주세요.
+              팀, 시즌, 회차를 먼저 선택해주세요.
 
             </p>
 
@@ -978,6 +1024,7 @@ export default function AdminPage() {
         {status.message && (
 
           <div
+            role="status"
             className={
               `admin-status ${status.type}`
             }
@@ -1261,7 +1308,7 @@ export default function AdminPage() {
                   </h2>
 
                   <p>
-                    총 {previewData.length}건
+                    {scopeLabel} · 총 {previewData.length}건
                   </p>
 
                 </div>
