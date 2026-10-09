@@ -1301,6 +1301,96 @@ footer {
 
 }
 
+/* 시즌 후원자 TOP 200: 기존 공용 스타일은 유지한다. */
+.top200-section {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid #252d37;
+}
+
+.top200-open {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+}
+
+.top200-back {
+  min-height: 44px;
+  margin-bottom: 20px;
+}
+
+.top200-scope {
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.top200-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 20px;
+}
+
+.top200-section .top200-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.top200-table {
+  width: 100%;
+  min-width: 420px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.top200-table th:nth-child(1) { width: 12%; }
+.top200-table th:nth-child(2) { width: 30%; }
+.top200-table th:nth-child(3) { width: 34%; }
+.top200-table th:nth-child(4) { width: 24%; }
+
+.top200-table caption {
+  padding: 12px;
+  color: #9c85ff;
+  text-align: left;
+}
+
+.top200-table th,
+.top200-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #252d37;
+  text-align: left;
+}
+
+.top200-table th {
+  color: #9fa8b4;
+  background: #171e27;
+  white-space: nowrap;
+}
+
+.top200-table .top200-nickname {
+  min-width: 120px;
+  max-width: 240px;
+  overflow-wrap: anywhere;
+}
+
+.top200-table .top200-number {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.top200-open:focus-visible,
+.top200-back:focus-visible,
+.top200-table-wrap:focus-visible {
+  outline: 2px solid #9c85ff;
+  outline-offset: 3px;
+}
+
 /* ===================================================
    HEADER LOGO
 =================================================== */

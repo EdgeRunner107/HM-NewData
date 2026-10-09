@@ -6,6 +6,7 @@ import React, {
 
 import axios from 'axios';
 import { DATA_API_URL as API_URL, DEFAULT_ROUND, TEAMS, SEASONS } from '../newDataConfig';
+import SeasonTop200 from '../components/SeasonTop200';
 
 import {
   Link
@@ -2511,6 +2512,9 @@ export default function ViewerPage() {
           </>
         )}
 
+
+        <SeasonTop200 key={`${selectedTeam}:${selectedSeason}`}
+          team={selectedTeam} season={selectedSeason} formatNumber={numberFormat.format} />
 
         <footer>
           {API_URL}

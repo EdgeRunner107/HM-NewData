@@ -16,3 +16,7 @@ export const UPLOAD_API_URL = (
   import.meta.env.VITE_UPLOAD_API_URL ||
   'https://asg-b2.onrender.com/upload-supabaseb'
 ).replace(/(?:\/newdata)?\/upload-supabaseb?(?=[?#]|$)/, '/newdata/upload-supabaseb');
+
+// TOP 200도 기존 조회 API와 같은 서버를 사용한다. 별도 URL이 필요한 경우만 재정의한다.
+export const TOP200_API_URL = import.meta.env.VITE_TOP200_API_URL ||
+  new URL('/newdata/top200', new URL(DATA_API_URL, window.location.href)).href;

@@ -91,3 +91,22 @@ Excel에 team/season/round 컬럼은 필요 없으며, 있더라도 UI 선택값
 기본 브라우저는 Windows Chrome이며 `NEWDATA_CHROME_PATH`로 경로를,
 `NEWDATA_BROWSER_URL`로 테스트할 프론트 주소를 지정할 수 있습니다.
 테스트는 API와 DB를 모의 처리하며 운영 데이터는 변경하지 않습니다.
+
+## 시즌 후원자 TOP 200
+
+팀과 시즌을 선택하면 기존 데이터 UI 맨 아래에 `시즌 후원자 TOP 200 보기` 버튼이 표시됩니다.
+현재 팀/시즌으로 `GET /newdata/top200?team=H팀&season=시즌1`을 호출하며 회차는 전달하지 않습니다.
+ASG-B2는 기존 `donation_top200_by_team_season` VIEW만 조회해 rank 오름차순으로 최대 200명을 반환합니다.
+VIEW/DB 스키마/기존 자료 조회와 계산/업로드는 변경하지 않습니다.
+
+`src/components/SeasonTop200.jsx`는 독립 상태와 요청 취소를 사용합니다.
+TOP 200을 닫아도 기존 회차/스트리머/검색/데이터를 보존하며, 팀이나 시즌을 변경하면 초기화됩니다.
+모바일 순위 표는 표 영역 안에서 가로로 스크롤할 수 있습니다.
+
+기본적으로 기존 조회 API와 같은 서버의 `/newdata/top200`을 사용합니다.
+주소를 따로 지정해야 하면 선택적으로 `VITE_TOP200_API_URL`을 설정합니다.
+이 기능을 제공하는 ASG-B2 변경을 함께 배포해야 합니다.
+
+추가 검증: 백엔드에서 `node --test tests/top200.test.cjs`,
+프론트 개발 서버 실행 후 `node tests/top200.browser.cjs`.
+브라우저 실행 환경은 위 기존 테스트와 동일합니다.
